@@ -1,3 +1,5 @@
+import sys
+
 from Parser import Parser, CommandType as CT
 from CodeWriter import CodeWriter
 
@@ -16,5 +18,4 @@ class VMTranslater:
                 self.cw.writeArithmetic(self.parser.current)
         self.cw.close()
 
-# VMTranslater('/home/krawat/random software from internet/n2t/nand2tetris/projects/07/StackArithmetic/StackTest/StackTest.vm').translate()
-VMTranslater('/home/krawat/random software from internet/n2t/nand2tetris/projects/07/StackArithmetic/StackTest/StackTest.vm').translate()
+VMTranslater(sys.argv[1]).translate()
