@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from Parser import CommandType as CT
+
 
 with open('Hack/Arithmetic/binary.asm') as f: binaryT = f.read()
 with open('Hack/Arithmetic/compare.asm') as f: compareT = f.read()
@@ -9,17 +12,26 @@ with open('Hack/Stack/popD.asm') as f: popD = f.read()
 with open('Hack/Stack/push.asm') as f: push = f.read()
 with open('Hack/Stack/pop.asm') as f: pop = f.read()
 
+with open('Hack/Function/call.asm') as f: callBody = f.read()
+with open('Hack/Function/return.asm') as f: returnBody = f.read()
+with open('Hack/Function/frameD.asm') as f: frameD = f.read()
+
 
 segments = {'pointer': 'pointer', 'local': 'LCL', 'this': 'THIS', 'that': 'THAT', 'argument': 'ARG'}
 
 
 class CodeWriter:
-    def __init__(self, fp) -> None:
+    def __init__(self, fp, save = None) -> None:
+        fp = str(fp)
         self.fname = '.'.join(fp.split('/')[-1].split('.')[:-1])
-        print(self.fname)
+        print(self.fname, save)
         self.fp = fp
-        self._out = ''
-        self._ind = 0
+        self.save = save
+        # self._out = ''
+        self._out = '@256\nD=A\n@SP\nM=D\n'
+        self._truefalse_ind = 0
+        self._call_ctr = 0
+        self.writeCall('Sys.init', 0)
 
     def writeArithmetic(self, instr: str):
         translated = f'//{instr}\n'
@@ -33,14 +45,14 @@ class CodeWriter:
             case 'neg': translated += unaryT.format(op = '-')
 
             case 'eq':
-                translated += compareT.format(jmp = f'@true{self._ind}\nD;JEQ', ind=self._ind) + '\n' + pushD
-                self._ind += 1
+                translated += compareT.format(jmp = f'@true{self._truefalse_ind}\nD;JEQ', ind=self._truefalse_ind) + '\n' + pushD
+                self._truefalse_ind += 1
             case 'lt':
-                translated += compareT.format(jmp = f'@true{self._ind}\nD;JLT', ind=self._ind) + '\n' + pushD
-                self._ind += 1
+                translated += compareT.format(jmp = f'@true{self._truefalse_ind}\nD;JLT', ind=self._truefalse_ind) + '\n' + pushD
+                self._truefalse_ind += 1
             case 'gt':
-                translated += compareT.format(jmp = f'@true{self._ind}\nD;JGT', ind=self._ind) + '\n' + pushD
-                self._ind += 1
+                translated += compareT.format(jmp = f'@true{self._truefalse_ind}\nD;JGT', ind=self._truefalse_ind) + '\n' + pushD
+                self._truefalse_ind += 1
 
         self._out += translated + '\n//-----------------\n'
     
@@ -79,6 +91,41 @@ class CodeWriter:
             translated += pop.format(ind = index, seg = seg) + '\n//--------------\n'
             self._out += translated
 
+    def writeLabel(self, label: str):
+        self._out += f'({label})\n'
+    
+    def writeGoto(self, label: str):
+        self._out += f'@{label}\n0;JMP\n'
+
+    def writeIf(self, label: str):
+        self._out += popD + f'\n@{label}\nD;JNE\n'
+
+    def writeFunction(self, fnName: str, nVars: int):
+        self.writeLabel(fnName)
+        self._out += 'D=0\n' + (pushD + '\n') * nVars
+
+    def writeCall(self, fnName: str, nArgs: int):
+        self._out += f'@ret{self._call_ctr}\nD=A\n' + pushD + '\n'
+        pointers = ['LCL', 'ARG', 'THIS', 'THAT']
+        for ptr in pointers:
+            self._out += f'@{ptr}\nD=M\n' + pushD + '\n'
+        self._out += callBody.format(arg5 = 5 + nArgs, fn = fnName)
+        self._out += f'\n(ret{self._call_ctr})\n'
+        self._call_ctr += 1
+
+    def writeReturn(self):
+        ret = frameD.format(ind = 5) + '\n@ret\nM=D'
+        pointers = ['LCL', 'ARG', 'THIS', 'THAT']
+        restore = ''
+        for ind, ptr in enumerate(pointers):
+            restore += frameD.format(ind = 4 - ind) + f'\n@{ptr}\nM=D\n'
+        self._out += returnBody.format(retaddr = ret, restore = restore, pop=popD) + '\n'
+
     def close(self):
-        with open('.'.join(self.fp.split('.')[:-1]) + '.asm', 'w') as wf:
+        if self.save:
+            with open(self.save, 'a') as wf:
+                wf.write(self._out)
+            return
+        print('.'.join(self.fp.split('.')[:-1]) + '.asm')
+        with open('.'.join(self.fp.split('.')[:-1]) + '.asm', 'a') as wf:
             wf.write(self._out)

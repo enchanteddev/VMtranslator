@@ -1,0 +1,17 @@
+@LCL
+D=M
+@endframe
+M=D
+{retaddr}
+{pop}
+@ARG
+A=M
+M=D
+@ARG
+D=M+1
+@SP
+M=D
+{restore}
+@ret
+A=M
+0;JMP

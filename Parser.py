@@ -1,6 +1,5 @@
 from enum import Enum, auto
 
-
 class CommandType(Enum):
     C_ARITHMETIC = auto()
     C_PUSH = auto()
@@ -15,9 +14,14 @@ class CommandType(Enum):
 
 
 class Parser:
-    def __init__(self, fp) -> None:
-        with open(fp) as f:
+    def __init__(self, path) -> None:
+        with open(path) as f:
             self.lines = f.readlines()
+        ll = []
+        for l in self.lines:
+            if (ls := l.strip()) != '':
+                ll.append(ls)
+        self.lines = ll
         self.cursor = -1
         self.curr = ''
         self._tokens = []
@@ -28,11 +32,12 @@ class Parser:
     
     def advance(self):
         self.cursor += 1
-        while (curr := self.lines[self.cursor])[:2] == '//' or curr.strip() == '':
+        while (curr := self.lines[self.cursor])[:2] == '//':
             self.cursor += 1
             if not self.hasMoreLines(): break
-        self.curr = curr[:-1]
+        self.curr = curr.split('//')[0].strip()
         self._tokens = self.curr.split(' ')
+        print(self._tokens)
     
     def commandType(self):
         match self._tokens[0]:
@@ -50,9 +55,9 @@ class Parser:
             case 'if-goto': return CommandType.C_IF
             case 'goto': return CommandType.C_GOTO
 
-            case 'Function': return CommandType.C_FUNCTION
+            case 'function': return CommandType.C_FUNCTION
             case 'return': return CommandType.C_RETURN
-            case 'Call': return CommandType.C_CALL
+            case 'call': return CommandType.C_CALL
 
             case 'push': return CommandType.C_PUSH
             case 'pop': return CommandType.C_POP
@@ -65,4 +70,3 @@ class Parser:
     
     def arg2(self):
         return int(self._tokens[2])
-

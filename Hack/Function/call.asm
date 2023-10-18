@@ -1,0 +1,12 @@
+@{arg5}
+D=A
+@SP
+D=M-D
+@ARG
+M=D
+@SP
+D=M
+@LCL
+M=D
+@{fn}
+0;JMP
