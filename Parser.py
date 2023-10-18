@@ -6,64 +6,63 @@ class CommandType(Enum):
     C_PUSH = auto()
     C_POP = auto()
     C_LABEL = auto()
-    C_GOTO = auto()
     C_IF = auto()
     C_FUNCTION = auto()
+    C_GOTO = auto()
     C_RETURN = auto()
     C_CALL = auto()
 
 
+
 class Parser:
-    def __init__(self, fp: str) -> None:
+    def __init__(self, fp) -> None:
         with open(fp) as f:
             self.lines = f.readlines()
         self.cursor = -1
+        self.curr = ''
+        self._tokens = []
         self.end = len(self.lines)
-
-        self.current = ''
-        self.segments = self.current.split(' ')
     
     def hasMoreLines(self):
         return self.cursor < self.end - 1
     
     def advance(self):
         self.cursor += 1
-        self.current = self.lines[self.cursor]
-        while self.cursor < self.end - 1 and (self.current.startswith('//') or self.current.strip() == ''):
+        while (curr := self.lines[self.cursor])[:2] == '//' or curr.strip() == '':
             self.cursor += 1
-            self.current = self.lines[self.cursor]
-        self.current = self.current.split('//')[0].strip()
-        self.segments = self.current.split(' ')
+            if not self.hasMoreLines(): break
+        self.curr = curr[:-1]
+        self._tokens = self.curr.split(' ')
     
-    def commandType(self) -> CommandType:
-        first_part = self.segments[0]
-        match first_part:
-            case 'push': return CommandType.C_PUSH
-            case 'pop': return CommandType.C_POP
-            case 'label': return CommandType.C_LABEL
-            case 'goto': return CommandType.C_GOTO
-            case 'if-goto': return CommandType.C_IF
-            case 'Function': return CommandType.C_FUNCTION
-            case 'Call': return CommandType.C_CALL
-            case 'return': return CommandType.C_RETURN
+    def commandType(self):
+        match self._tokens[0]:
             case 'add': return CommandType.C_ARITHMETIC
-            case 'and': return CommandType.C_ARITHMETIC
-            case 'or': return CommandType.C_ARITHMETIC
-            case 'not': return CommandType.C_ARITHMETIC
             case 'sub': return CommandType.C_ARITHMETIC
             case 'neg': return CommandType.C_ARITHMETIC
             case 'eq': return CommandType.C_ARITHMETIC
             case 'gt': return CommandType.C_ARITHMETIC
             case 'lt': return CommandType.C_ARITHMETIC
-            case _: raise ValueError(f"line {self.cursor}: {self.current}; invalid first token {first_part}")
+            case 'or': return CommandType.C_ARITHMETIC
+            case 'not': return CommandType.C_ARITHMETIC
+            case 'and': return CommandType.C_ARITHMETIC
+
+            case 'label': return CommandType.C_LABEL
+            case 'if-goto': return CommandType.C_IF
+            case 'goto': return CommandType.C_GOTO
+
+            case 'Function': return CommandType.C_FUNCTION
+            case 'return': return CommandType.C_RETURN
+            case 'Call': return CommandType.C_CALL
+
+            case 'push': return CommandType.C_PUSH
+            case 'pop': return CommandType.C_POP
+            case _: raise SyntaxError(f"{self.cursor}: {self.curr}; invalid first token")
         
     def arg1(self):
-        if len(self.segments) < 2:
-            return self.segments[0]
-        return self.segments[1]
+        if self.commandType() == CommandType.C_ARITHMETIC:
+            return self._tokens[0]
+        return self._tokens[1]
     
     def arg2(self):
-        try:
-            return self.segments[2]
-        except IndexError:
-            raise Exception(f"line {self.cursor}: {self.current}; called arg2")
+        return int(self._tokens[2])
+
